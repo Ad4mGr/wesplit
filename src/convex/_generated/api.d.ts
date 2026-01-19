@@ -8,13 +8,25 @@
  * @module
  */
 
+import type * as balances from "../balances.js";
+import type * as expenses from "../expenses.js";
+import type * as groups from "../groups.js";
+import type * as members from "../members.js";
+import type * as settlements from "../settlements.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  balances: typeof balances;
+  expenses: typeof expenses;
+  groups: typeof groups;
+  members: typeof members;
+  settlements: typeof settlements;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.
