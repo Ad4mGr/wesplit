@@ -145,6 +145,7 @@ export const update = mutation({
     groupId: v.id("groups"),
     name: v.optional(v.string()),
     description: v.optional(v.string()),
+    currency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { groupId, ...updates } = args;

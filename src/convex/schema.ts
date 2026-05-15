@@ -9,6 +9,7 @@ export default defineSchema({
     createdAt: v.number(),
     archived: v.boolean(),
     inviteCode: v.string(),
+    currency: v.optional(v.string()),
   })
     .index("by_invite_code", ["inviteCode"]),
 

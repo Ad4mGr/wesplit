@@ -2,13 +2,28 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { Settings, Trash2, AlertTriangle, Copy, Pencil, Check } from '@lucide/svelte';
+	import { Settings, Trash2, AlertTriangle, Copy, Pencil, Check, DollarSign } from '@lucide/svelte';
 	import { useQuery, useConvexClient } from 'convex-svelte';
 	import { api } from '../../../convex/_generated/api';
 	import type { Id } from '../../../convex/_generated/dataModel';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
+
+	const CURRENCIES = [
+		{ symbol: '$', code: 'USD', name: 'US Dollar' },
+		{ symbol: '€', code: 'EUR', name: 'Euro' },
+		{ symbol: '£', code: 'GBP', name: 'British Pound' },
+		{ symbol: '¥', code: 'JPY', name: 'Japanese Yen' },
+		{ symbol: '₹', code: 'INR', name: 'Indian Rupee' },
+		{ symbol: '₿', code: 'BTC', name: 'Bitcoin' },
+		{ symbol: 'A$', code: 'AUD', name: 'Australian Dollar' },
+		{ symbol: 'C$', code: 'CAD', name: 'Canadian Dollar' },
+		{ symbol: 'Fr', code: 'CHF', name: 'Swiss Franc' },
+		{ symbol: '₩', code: 'KRW', name: 'South Korean Won' },
+		{ symbol: 'R$', code: 'BRL', name: 'Brazilian Real' },
+		{ symbol: 'zł', code: 'PLN', name: 'Polish Zloty' },
+	];
 
 	let groupId = $derived($page.params.groupId as Id<'groups'>);
 	let client: ReturnType<typeof useConvexClient>;
@@ -17,6 +32,7 @@
 
 	let showDeleteModal = $state(false);
 	let showEditModal = $state(false);
+	let showCurrencyModal = $state(false);
 	let editName = $state('');
 	let editDescription = $state('');
 	let copied = $state(false);
@@ -58,6 +74,18 @@
 		}
 	}
 
+	async function updateCurrency(code: string) {
+		try {
+			await client.mutation(api.groups.update, {
+				groupId,
+				currency: code
+			});
+			showCurrencyModal = false;
+		} catch (e) {
+			console.error('Failed to update currency:', e);
+		}
+	}
+
 	async function deleteGroup() {
 		deleting = true;
 		try {
@@ -68,6 +96,11 @@
 		} finally {
 			deleting = false;
 		}
+	}
+
+	function getCurrencyInfo() {
+		if (!group.data?.currency) return { symbol: '$', name: 'US Dollar' };
+		return CURRENCIES.find(c => c.code === group.data!.currency) || { symbol: '$', name: 'US Dollar' };
 	}
 </script>
 
@@ -92,6 +125,29 @@
 				{/if}
 			</Button>
 		</div>
+	</div>
+</Modal>
+
+<Modal bind:open={showCurrencyModal} title="Currency" size="sm">
+	<div class="space-y-2">
+		{#each CURRENCIES as currency (currency.code)}
+			<button
+				type="button"
+				onclick={() => updateCurrency(currency.code)}
+				class="w-full flex items-center justify-between p-3 rounded-lg border transition-colors {group.data?.currency === currency.code ? 'bg-accent-dim border-accent' : 'bg-surface-raised border-border hover:border-border-hover'}"
+			>
+				<div class="flex items-center gap-3">
+					<span class="text-lg font-mono w-8 text-center">{currency.symbol}</span>
+					<div class="text-left">
+						<p class="text-sm font-medium">{currency.name}</p>
+						<p class="text-xs text-text-muted">{currency.code}</p>
+					</div>
+				</div>
+				{#if group.data?.currency === currency.code}
+					<Check size={16} class="text-accent" />
+				{/if}
+			</button>
+		{/each}
 	</div>
 </Modal>
 
@@ -134,6 +190,27 @@
 					<span class="flex items-center gap-1.5">
 						<Pencil size={14} />
 						Edit
+					</span>
+				</Button>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Currency -->
+	{#if group.data}
+		<div class="p-5 bg-surface border border-border rounded-xl">
+			<div class="flex items-center justify-between">
+				<div>
+					<h3 class="text-sm font-medium text-text-secondary mb-1">Currency</h3>
+					<div class="flex items-center gap-2">
+						<span class="text-xl font-mono">{getCurrencyInfo().symbol}</span>
+						<span class="text-sm">{getCurrencyInfo().name}</span>
+					</div>
+				</div>
+				<Button variant="secondary" size="sm" onclick={() => showCurrencyModal = true}>
+					<span class="flex items-center gap-1.5">
+						<DollarSign size={14} />
+						Change
 					</span>
 				</Button>
 			</div>
