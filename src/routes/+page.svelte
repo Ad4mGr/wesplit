@@ -1,16 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Plus, Link, Users } from '@lucide/svelte';
+	import { Plus, Link, Users, Copy, Check } from '@lucide/svelte';
+	import { useQuery, useConvexClient } from 'convex-svelte';
+	import { api } from '../convex/_generated/api';
+	import type { Id } from '../convex/_generated/dataModel';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import Modal from '$lib/components/Modal.svelte';
-
-	interface Group {
-		_id: string;
-		name: string;
-		description?: string;
-		inviteCode: string;
-	}
 
 	let userName = $state('');
 	let showNameModal = $state(false);
@@ -19,49 +15,80 @@
 	let groupName = $state('');
 	let groupDescription = $state('');
 	let inviteCode = $state('');
-	let groups = $state<Group[]>([]);
+	let creating = $state(false);
+	let joining = $state(false);
+	let joinError = $state('');
+	let copiedCode = $state<string | null>(null);
+
+	const groups = useQuery(api.groups.list, {});
+
+	let client: ReturnType<typeof useConvexClient>;
 
 	onMount(() => {
+		client = useConvexClient();
 		const stored = localStorage.getItem('wesplit_user');
 		if (stored) {
 			userName = stored;
-			document.getElementById('user-display')!.textContent = `@${userName}`;
+			const el = document.getElementById('user-display');
+			if (el) el.textContent = `@${userName}`;
 		} else {
 			showNameModal = true;
 		}
-		loadGroups();
 	});
 
-	async function saveName() {
+	function saveName() {
 		if (!userName.trim()) return;
 		localStorage.setItem('wesplit_user', userName.trim());
-		document.getElementById('user-display')!.textContent = `@${userName.trim()}`;
+		const el = document.getElementById('user-display');
+		if (el) el.textContent = `@${userName.trim()}`;
 		showNameModal = false;
 	}
 
-	async function loadGroups() {
-		// TODO: Replace with actual Convex query
-		groups = [];
+	async function handleCreateGroup() {
+		if (!groupName.trim() || !userName) return;
+		creating = true;
+		try {
+			const result = await client.mutation(api.groups.create, {
+				name: groupName.trim(),
+				description: groupDescription.trim() || undefined,
+				createdBy: userName
+			});
+			showCreateModal = false;
+			groupName = '';
+			groupDescription = '';
+			window.location.href = `/${result.groupId}/expenses`;
+		} catch (e) {
+			console.error('Failed to create group:', e);
+		} finally {
+			creating = false;
+		}
 	}
 
-	async function createGroup() {
-		// TODO: Replace with Convex mutation
-		console.log('Create group:', { name: groupName, description: groupDescription });
-		showCreateModal = false;
-		groupName = '';
-		groupDescription = '';
-	}
-
-	async function joinGroup() {
-		// TODO: Replace with Convex mutation
-		console.log('Join group:', { code: inviteCode });
-		showJoinModal = false;
-		inviteCode = '';
+	async function handleJoinGroup() {
+		if (!inviteCode.trim()) return;
+		joining = true;
+		joinError = '';
+		try {
+			const code = inviteCode.trim().toUpperCase();
+			const group = await client.query(api.groups.getByInviteCode, { inviteCode: code });
+			if (!group) {
+				joinError = 'Invalid invite code';
+				return;
+			}
+			showJoinModal = false;
+			inviteCode = '';
+			window.location.href = `/${group._id}/expenses`;
+		} catch (e) {
+			joinError = 'Failed to join group';
+		} finally {
+			joining = false;
+		}
 	}
 
 	function copyInviteCode(code: string) {
-		const url = `${window.location.origin}/join?code=${code}`;
-		navigator.clipboard.writeText(url);
+		navigator.clipboard.writeText(code);
+		copiedCode = code;
+		setTimeout(() => { copiedCode = null; }, 2000);
 	}
 </script>
 
@@ -69,7 +96,6 @@
 	<title>WeSplit</title>
 </svelte:head>
 
-<!-- Name Setup Modal -->
 <Modal bind:open={showNameModal} title="What's your name?">
 	<div class="space-y-4">
 		<Input bind:value={userName} placeholder="Enter your name" onkeydown={(e) => e.key === 'Enter' && saveName()} />
@@ -77,38 +103,54 @@
 	</div>
 </Modal>
 
-<!-- Create Group Modal -->
 <Modal bind:open={showCreateModal} title="Create a group">
 	<div class="space-y-4">
 		<Input bind:value={groupName} label="Group name" placeholder="e.g. Apartment 4B" />
 		<Input bind:value={groupDescription} label="Description (optional)" placeholder="e.g. Summer trip expenses" />
 		<div class="flex gap-2 pt-2">
 			<Button variant="ghost" fullWidth onclick={() => showCreateModal = false}>Cancel</Button>
-			<Button fullWidth onclick={createGroup}>Create</Button>
+			<Button fullWidth disabled={creating || !groupName.trim()} onclick={handleCreateGroup}>
+				{#if creating}
+					<span class="flex items-center justify-center gap-2">
+						<span class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+						Creating...
+					</span>
+				{:else}
+					Create
+				{/if}
+			</Button>
 		</div>
 	</div>
 </Modal>
 
-<!-- Join Group Modal -->
 <Modal bind:open={showJoinModal} title="Join a group">
 	<div class="space-y-4">
 		<Input bind:value={inviteCode} label="Invite code or link" placeholder="Paste invite code or link" />
+		{#if joinError}
+			<p class="text-sm text-danger">{joinError}</p>
+		{/if}
 		<div class="flex gap-2 pt-2">
 			<Button variant="ghost" fullWidth onclick={() => showJoinModal = false}>Cancel</Button>
-			<Button fullWidth onclick={joinGroup}>Join</Button>
+			<Button fullWidth disabled={joining || !inviteCode.trim()} onclick={handleJoinGroup}>
+				{#if joining}
+					<span class="flex items-center justify-center gap-2">
+						<span class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+						Joining...
+					</span>
+				{:else}
+					Join
+				{/if}
+			</Button>
 		</div>
 	</div>
 </Modal>
 
-<!-- Main Content -->
 <div class="space-y-6">
-	<!-- Hero -->
 	<div class="text-center py-8">
 		<h1 class="text-2xl font-bold tracking-tight mb-2">Your Groups</h1>
 		<p class="text-text-secondary text-sm">Track expenses, split fairly, settle up</p>
 	</div>
 
-	<!-- Actions -->
 	<div class="flex gap-2">
 		<Button fullWidth onclick={() => showCreateModal = true}>
 			<span class="flex items-center justify-center gap-2">
@@ -124,10 +166,23 @@
 		</Button>
 	</div>
 
-	<!-- Groups List -->
-	{#if groups.length > 0}
+	{#if groups.isLoading}
 		<div class="space-y-2">
-			{#each groups as group}
+			{#each [1, 2, 3] as _}
+				<div class="p-4 bg-surface border border-border rounded-lg animate-pulse">
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 bg-surface-raised rounded-md"></div>
+						<div class="flex-1 space-y-2">
+							<div class="h-4 bg-surface-raised rounded w-1/3"></div>
+							<div class="h-3 bg-surface-raised rounded w-1/4"></div>
+						</div>
+					</div>
+				</div>
+			{/each}
+		</div>
+	{:else if groups.data && groups.data.length > 0}
+		<div class="space-y-2">
+			{#each groups.data as group (group._id)}
 				<a
 					href="/{group._id}"
 					class="block p-4 bg-surface border border-border rounded-lg hover:border-border-hover transition-colors group"
@@ -150,7 +205,11 @@
 							class="p-2 text-text-muted hover:text-text-primary opacity-0 group-hover:opacity-100 transition-all"
 							title="Copy invite link"
 						>
-							<Link size={16} />
+							{#if copiedCode === group.inviteCode}
+								<Check size={16} class="text-accent" />
+							{:else}
+								<Copy size={16} />
+							{/if}
 						</button>
 					</div>
 				</a>

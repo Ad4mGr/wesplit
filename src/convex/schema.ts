@@ -8,7 +8,9 @@ export default defineSchema({
     createdBy: v.string(),
     createdAt: v.number(),
     archived: v.boolean(),
-  }),
+    inviteCode: v.string(),
+  })
+    .index("by_invite_code", ["inviteCode"]),
 
   members: defineTable({
     groupId: v.id("groups"),

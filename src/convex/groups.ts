@@ -1,6 +1,15 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+function generateInviteCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
 // List all active groups
 export const list = query({
   args: {},
@@ -21,6 +30,18 @@ export const get = query({
   },
 });
 
+// Get a group by invite code
+export const getByInviteCode = query({
+  args: { inviteCode: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("groups")
+      .withIndex("by_invite_code", (q) => q.eq("inviteCode", args.inviteCode))
+      .filter((q) => q.eq(q.field("archived"), false))
+      .first();
+  },
+});
+
 // Create a new group
 export const create = mutation({
   args: {
@@ -29,14 +50,16 @@ export const create = mutation({
     createdBy: v.string(),
   },
   handler: async (ctx, args) => {
+    const inviteCode = generateInviteCode();
     const groupId = await ctx.db.insert("groups", {
       name: args.name,
       description: args.description,
       createdBy: args.createdBy,
       createdAt: Date.now(),
       archived: false,
+      inviteCode,
     });
-    return groupId;
+    return { groupId, inviteCode };
   },
 });
 

@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { useConvexClient } from 'convex-svelte';
+	import { api } from '../../convex/_generated/api';
 	import { CheckCircle } from '@lucide/svelte';
 	import Button from '$lib/components/Button.svelte';
 	import Input from '$lib/components/Input.svelte';
@@ -12,7 +14,10 @@
 	let error = $state('');
 	let success = $state(false);
 
+	let client: ReturnType<typeof useConvexClient>;
+
 	onMount(() => {
+		client = useConvexClient();
 		const stored = localStorage.getItem('wesplit_user');
 		if (stored) userName = stored;
 	});
@@ -22,14 +27,23 @@
 		loading = true;
 		error = '';
 
-		// TODO: Replace with Convex mutation
-		await new Promise(r => setTimeout(r, 500));
+		try {
+			const inviteCode = code.trim().toUpperCase();
+			const group = await client.query(api.groups.getByInviteCode, { inviteCode });
+			if (!group) {
+				error = 'Invalid or expired invite code';
+				loading = false;
+				return;
+			}
 
-		localStorage.setItem('wesplit_user', userName.trim());
-		success = true;
-		loading = false;
+			localStorage.setItem('wesplit_user', userName.trim());
+			success = true;
 
-		setTimeout(() => goto('/mock-group-id/expenses'), 1000);
+			setTimeout(() => goto(`/${group._id}/expenses`), 800);
+		} catch (e) {
+			error = 'Failed to join group';
+			loading = false;
+		}
 	}
 </script>
 
@@ -50,7 +64,7 @@
 		{#if code}
 			<div class="p-3 bg-surface-raised border border-border rounded-lg">
 				<p class="text-xs text-text-muted mb-1">Invite code</p>
-				<p class="font-mono text-sm text-text-primary">{code}</p>
+				<p class="font-mono text-sm text-text-primary">{code.toUpperCase()}</p>
 			</div>
 		{/if}
 
