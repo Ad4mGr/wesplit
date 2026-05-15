@@ -20,9 +20,6 @@
 		class: className = '',
 		onkeydown
 	}: Props = $props();
-
-	let inputValue = $state(value);
-	export { inputValue as value };
 </script>
 
 <div class="w-full {className}">
@@ -33,7 +30,7 @@
 				{type}
 				{placeholder}
 				{disabled}
-				bind:value={inputValue}
+				bind:value
 				{onkeydown}
 				class="w-full mt-1.5 px-3 py-2 text-sm bg-surface-raised border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors disabled:opacity-40"
 			/>
@@ -43,7 +40,7 @@
 			{type}
 			{placeholder}
 			{disabled}
-			bind:value={inputValue}
+			bind:value
 			{onkeydown}
 			class="w-full px-3 py-2 text-sm bg-surface-raised border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors disabled:opacity-40"
 		/>

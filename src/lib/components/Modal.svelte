@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { X } from '@lucide/svelte';
-	import { onMount } from 'svelte';
 
 	interface Props {
 		open?: boolean;
@@ -11,48 +10,36 @@
 
 	let { open = $bindable(false), title = '', size = 'md', children }: Props = $props();
 
-	let isOpen = $state(open);
-	let isClosing = $state(false);
-
-	export { isOpen as open };
-
-	function close() {
-		isClosing = true;
-		setTimeout(() => {
-			isOpen = false;
-			isClosing = false;
-		}, 150);
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && isOpen) close();
-	}
-
-	onMount(() => {
-		document.addEventListener('keydown', handleKeydown);
-		return () => document.removeEventListener('keydown', handleKeydown);
-	});
-
 	const sizes = {
 		sm: 'max-w-sm',
 		md: 'max-w-md',
 		lg: 'max-w-lg'
 	};
+
+	function close() {
+		open = false;
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') close();
+	}
 </script>
 
-{#if isOpen}
+{#if open}
 	<div
 		class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+		onkeydown={handleKeydown}
+		tabindex="-1"
 	>
 		<div
-			class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+			class="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
 			onclick={close}
 			role="button"
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && close()}
 		></div>
 		<div
-			class="relative {sizes[size]} w-full mx-4 mb-0 sm:mb-0 bg-surface border border-border rounded-t-xl sm:rounded-xl shadow-2xl {isClosing ? 'animate-slide-down' : 'animate-slide-up'}"
+			class="relative {sizes[size]} w-full mx-4 mb-0 sm:mb-0 bg-surface border border-border rounded-t-xl sm:rounded-xl shadow-2xl animate-slide-up"
 			role="dialog"
 			aria-modal="true"
 		>
@@ -76,14 +63,14 @@
 {/if}
 
 <style>
+	@keyframes fade-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
 	@keyframes slide-up {
 		from { transform: translateY(100%); opacity: 0; }
 		to { transform: translateY(0); opacity: 1; }
 	}
-	@keyframes slide-down {
-		from { transform: translateY(0); opacity: 1; }
-		to { transform: translateY(100%); opacity: 0; }
-	}
+	.animate-fade-in { animation: fade-in 0.15s ease-out; }
 	.animate-slide-up { animation: slide-up 0.2s ease-out; }
-	.animate-slide-down { animation: slide-down 0.15s ease-in; }
 </style>
