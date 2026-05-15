@@ -8,7 +8,9 @@
 	const tabs = $derived([
 		{ label: 'Expenses', href: 'expenses', active: currentTab === 'expenses' || currentTab === groupId },
 		{ label: 'Balances', href: 'balances', active: currentTab === 'balances' },
-		{ label: 'Settle', href: 'settle', active: currentTab === 'settle' }
+		{ label: 'Settle', href: 'settle', active: currentTab === 'settle' },
+		{ label: 'Members', href: 'members', active: currentTab === 'members' },
+		{ label: 'Settings', href: 'settings', active: currentTab === 'settings' }
 	]);
 
 	let { children }: { children: () => any } = $props();

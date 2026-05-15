@@ -2,10 +2,18 @@
 	import { PUBLIC_CONVEX_URL } from '$env/static/public';
 	import { setupConvex } from 'convex-svelte';
 	import '../routes/layout.css';
-	import { Split } from '@lucide/svelte';
+	import { Split, User } from '@lucide/svelte';
+	import { onMount } from 'svelte';
 
 	const { children } = $props();
 	setupConvex(PUBLIC_CONVEX_URL);
+
+	let userName = $state('');
+
+	onMount(() => {
+		const stored = localStorage.getItem('wesplit_user');
+		if (stored) userName = stored;
+	});
 </script>
 
 <div class="min-h-screen bg-background flex flex-col">
@@ -17,9 +25,14 @@
 				</div>
 				<span class="text-base font-semibold tracking-tight">WeSplit</span>
 			</a>
-			<div class="flex items-center gap-2">
-				<span id="user-display" class="text-xs text-text-muted font-mono"></span>
-			</div>
+			<a href="/profile" class="flex items-center gap-2 p-1.5 hover:bg-surface-raised rounded-md transition-colors group">
+				<div class="w-7 h-7 bg-accent-dim rounded-full flex items-center justify-center">
+					<User size={14} class="text-accent" />
+				</div>
+				{#if userName}
+					<span class="text-xs text-text-secondary group-hover:text-text-primary transition-colors hidden sm:inline">{userName}</span>
+				{/if}
+			</a>
 		</div>
 	</header>
 

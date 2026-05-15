@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Plus, Link, Users, Copy, Check } from '@lucide/svelte';
+	import { Plus, Link, Users, Copy, Check, Trash2 } from '@lucide/svelte';
 	import { useQuery, useConvexClient } from 'convex-svelte';
 	import { api } from '../convex/_generated/api';
 	import type { Id } from '../convex/_generated/dataModel';
@@ -12,6 +12,8 @@
 	let showNameModal = $state(false);
 	let showCreateModal = $state(false);
 	let showJoinModal = $state(false);
+	let showDeleteModal = $state(false);
+	let deleteTarget = $state<{ id: Id<'groups'>; name: string } | null>(null);
 	let groupName = $state('');
 	let groupDescription = $state('');
 	let inviteCode = $state('');
@@ -20,7 +22,7 @@
 	let joinError = $state('');
 	let copiedCode = $state<string | null>(null);
 
-	const groups = useQuery(api.groups.list, {});
+	const groups = useQuery(api.groups.listByMember, () => (userName.trim() ? { userName: userName.trim() } : 'skip'));
 
 	let client: ReturnType<typeof useConvexClient>;
 
@@ -70,16 +72,15 @@
 		joinError = '';
 		try {
 			const code = inviteCode.trim().toUpperCase();
-			const group = await client.query(api.groups.getByInviteCode, { inviteCode: code });
-			if (!group) {
-				joinError = 'Invalid invite code';
-				return;
-			}
+			const result = await client.mutation(api.groups.joinGroup, {
+				inviteCode: code,
+				userName: userName.trim() || 'Anonymous'
+			});
 			showJoinModal = false;
 			inviteCode = '';
-			window.location.href = `/${group._id}/expenses`;
-		} catch (e) {
-			joinError = 'Failed to join group';
+			window.location.href = `/${result.groupId}/expenses`;
+		} catch (e: any) {
+			joinError = e.message || 'Failed to join group';
 		} finally {
 			joining = false;
 		}
@@ -89,6 +90,22 @@
 		navigator.clipboard.writeText(code);
 		copiedCode = code;
 		setTimeout(() => { copiedCode = null; }, 2000);
+	}
+
+	function confirmDelete(id: Id<'groups'>, name: string) {
+		deleteTarget = { id, name };
+		showDeleteModal = true;
+	}
+
+	async function deleteGroup() {
+		if (!deleteTarget) return;
+		try {
+			await client.mutation(api.groups.remove, { groupId: deleteTarget.id });
+			showDeleteModal = false;
+			deleteTarget = null;
+		} catch (e) {
+			console.error('Failed to delete group:', e);
+		}
 	}
 </script>
 
@@ -145,6 +162,18 @@
 	</div>
 </Modal>
 
+<Modal bind:open={showDeleteModal} title="Delete group" size="sm">
+	{#if deleteTarget}
+		<div class="space-y-4">
+			<p class="text-sm text-text-secondary">Are you sure you want to delete <strong class="text-text-primary">{deleteTarget.name}</strong>? This will permanently remove all members, expenses, and settlement history.</p>
+			<div class="flex gap-2">
+				<Button variant="ghost" fullWidth onclick={() => showDeleteModal = false}>Cancel</Button>
+				<Button variant="danger" fullWidth onclick={deleteGroup}>Delete</Button>
+			</div>
+		</div>
+	{/if}
+</Modal>
+
 <div class="space-y-6">
 	<div class="text-center py-8">
 		<h1 class="text-2xl font-bold tracking-tight mb-2">Your Groups</h1>
@@ -199,18 +228,28 @@
 								{/if}
 							</div>
 						</div>
-						<button
-							type="button"
-							onclick={(e: MouseEvent) => { e.preventDefault(); copyInviteCode(group.inviteCode); }}
-							class="p-2 text-text-muted hover:text-text-primary opacity-0 group-hover:opacity-100 transition-all"
-							title="Copy invite link"
-						>
-							{#if copiedCode === group.inviteCode}
-								<Check size={16} class="text-accent" />
-							{:else}
-								<Copy size={16} />
-							{/if}
-						</button>
+						<div class="flex items-center gap-1">
+							<button
+								type="button"
+								onclick={(e: MouseEvent) => { e.preventDefault(); confirmDelete(group._id, group.name); }}
+								class="p-2 text-text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition-all"
+								title="Delete group"
+							>
+								<Trash2 size={16} />
+							</button>
+							<button
+								type="button"
+								onclick={(e: MouseEvent) => { e.preventDefault(); copyInviteCode(group.inviteCode); }}
+								class="p-2 text-text-muted hover:text-text-primary opacity-0 group-hover:opacity-100 transition-all"
+								title="Copy invite link"
+							>
+								{#if copiedCode === group.inviteCode}
+									<Check size={16} class="text-accent" />
+								{:else}
+									<Copy size={16} />
+								{/if}
+							</button>
+						</div>
 					</div>
 				</a>
 			{/each}

@@ -29,19 +29,17 @@
 
 		try {
 			const inviteCode = code.trim().toUpperCase();
-			const group = await client.query(api.groups.getByInviteCode, { inviteCode });
-			if (!group) {
-				error = 'Invalid or expired invite code';
-				loading = false;
-				return;
-			}
+			const result = await client.mutation(api.groups.joinGroup, {
+				inviteCode,
+				userName: userName.trim()
+			});
 
 			localStorage.setItem('wesplit_user', userName.trim());
 			success = true;
 
-			setTimeout(() => goto(`/${group._id}/expenses`), 800);
-		} catch (e) {
-			error = 'Failed to join group';
+			setTimeout(() => goto(`/${result.groupId}/expenses`), 800);
+		} catch (e: any) {
+			error = e.message || 'Failed to join group';
 			loading = false;
 		}
 	}

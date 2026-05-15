@@ -22,6 +22,32 @@ export const list = query({
   },
 });
 
+// List groups where a specific user is a member
+export const listByMember = query({
+  args: { userName: v.string() },
+  handler: async (ctx, args) => {
+    // Find all active memberships for this user
+    const allMembers = await ctx.db
+      .query("members")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
+
+    const userMemberships = allMembers.filter(
+      (m) => m.name.toLowerCase() === args.userName.toLowerCase()
+    );
+
+    // Fetch the groups for those memberships
+    const groups = await Promise.all(
+      userMemberships.map(async (m) => {
+        const group = await ctx.db.get(m.groupId);
+        return group;
+      })
+    );
+
+    return groups.filter((g) => g && g.archived !== true) as NonNullable<typeof groups[number]>[];
+  },
+});
+
 // Get a single group by ID
 export const get = query({
   args: { groupId: v.id("groups") },
@@ -42,6 +68,47 @@ export const getByInviteCode = query({
   },
 });
 
+// Join a group via invite code (adds user as member)
+export const joinGroup = mutation({
+  args: { inviteCode: v.string(), userName: v.string() },
+  handler: async (ctx, args) => {
+    const group = await ctx.db
+      .query("groups")
+      .withIndex("by_invite_code", (q) => q.eq("inviteCode", args.inviteCode))
+      .filter((q) => q.eq(q.field("archived"), false))
+      .first();
+
+    if (!group) throw new Error("Invalid or expired invite code");
+
+    // Check if user is already a member
+    const existingMembers = await ctx.db
+      .query("members")
+      .withIndex("by_group", (q) => q.eq("groupId", group._id))
+      .filter((q) => q.eq(q.field("name"), args.userName))
+      .collect();
+
+    if (existingMembers.length > 0) {
+      const existing = existingMembers[0];
+      if (existing.isActive) {
+        return { groupId: group._id, memberId: existing._id, isNew: false };
+      }
+      // Reactivate if was deactivated
+      await ctx.db.patch(existing._id, { isActive: true });
+      return { groupId: group._id, memberId: existing._id, isNew: false };
+    }
+
+    // Add as new member
+    const memberId = await ctx.db.insert("members", {
+      groupId: group._id,
+      name: args.userName,
+      joinedAt: Date.now(),
+      isActive: true,
+    });
+
+    return { groupId: group._id, memberId, isNew: true };
+  },
+});
+
 // Create a new group
 export const create = mutation({
   args: {
@@ -59,6 +126,15 @@ export const create = mutation({
       archived: false,
       inviteCode,
     });
+
+    // Add creator as first member
+    await ctx.db.insert("members", {
+      groupId,
+      name: args.createdBy,
+      joinedAt: Date.now(),
+      isActive: true,
+    });
+
     return { groupId, inviteCode };
   },
 });
