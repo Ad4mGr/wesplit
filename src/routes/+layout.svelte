@@ -16,33 +16,39 @@
 	});
 </script>
 
-<div class="min-h-screen bg-background flex flex-col">
-	<header class="sticky top-0 z-40 bg-background/80 backdrop-blur-lg border-b border-border">
-		<div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-			<a href="/" class="flex items-center gap-2 group">
-				<div class="p-1.5 bg-accent-dim rounded-md group-hover:bg-accent/20 transition-colors">
+<div class="flex min-h-screen flex-col bg-background">
+	<header class="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg">
+		<div class="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
+			<a href="/" class="group flex items-center gap-2">
+				<div class="rounded-md bg-accent-dim p-1.5 transition-colors group-hover:bg-accent/20">
 					<Split size={18} class="text-accent" />
 				</div>
 				<span class="text-base font-semibold tracking-tight">WeSplit</span>
 			</a>
-			<a href="/profile" class="flex items-center gap-2 p-1.5 hover:bg-surface-raised rounded-md transition-colors group">
-				<div class="w-7 h-7 bg-accent-dim rounded-full flex items-center justify-center">
+			<a
+				href="/profile"
+				class="group flex items-center gap-2 rounded-md p-1.5 transition-colors hover:bg-surface-raised"
+			>
+				<div class="flex h-7 w-7 items-center justify-center rounded-full bg-accent-dim">
 					<User size={14} class="text-accent" />
 				</div>
 				{#if userName}
-					<span class="text-xs text-text-secondary group-hover:text-text-primary transition-colors hidden sm:inline">{userName}</span>
+					<span
+						class="hidden text-xs text-text-secondary transition-colors group-hover:text-text-primary sm:inline"
+						>{userName}</span
+					>
 				{/if}
 			</a>
 		</div>
 	</header>
 
-	<main class="flex-1 max-w-3xl w-full mx-auto px-4 py-6">
+	<main class="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
 		{@render children()}
 	</main>
 
 	<footer class="border-t border-border py-4">
-		<div class="max-w-3xl mx-auto px-4 text-center">
-			<p class="text-xs text-text-muted font-mono">WeSplit &middot; Split fairly</p>
+		<div class="mx-auto max-w-3xl px-4 text-center">
+			<p class="font-mono text-xs text-text-muted">WeSplit &middot; Split fairly</p>
 		</div>
 	</footer>
 </div>

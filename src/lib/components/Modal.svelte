@@ -27,29 +27,31 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+		class="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
 		onkeydown={handleKeydown}
 		tabindex="-1"
 	>
 		<div
-			class="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+			class="animate-fade-in absolute inset-0 bg-black/60 backdrop-blur-sm"
 			onclick={close}
 			role="button"
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && close()}
 		></div>
 		<div
-			class="relative {sizes[size]} w-full mx-4 mb-0 sm:mb-0 bg-surface border border-border rounded-t-xl sm:rounded-xl shadow-2xl animate-slide-up"
+			class="relative {sizes[
+				size
+			]} animate-slide-up mx-4 mb-0 w-full rounded-t-xl border border-border bg-surface shadow-2xl sm:mb-0 sm:rounded-xl"
 			role="dialog"
 			aria-modal="true"
 		>
 			{#if title}
-				<div class="flex items-center justify-between px-5 py-4 border-b border-border">
+				<div class="flex items-center justify-between border-b border-border px-5 py-4">
 					<h2 class="text-base font-semibold text-text-primary">{title}</h2>
 					<button
 						type="button"
 						onclick={close}
-						class="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface-raised rounded-md transition-colors"
+						class="rounded-md p-1.5 text-text-muted transition-colors hover:bg-surface-raised hover:text-text-primary"
 					>
 						<X size={18} />
 					</button>
@@ -64,13 +66,27 @@
 
 <style>
 	@keyframes fade-in {
-		from { opacity: 0; }
-		to { opacity: 1; }
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 	@keyframes slide-up {
-		from { transform: translateY(100%); opacity: 0; }
-		to { transform: translateY(0); opacity: 1; }
+		from {
+			transform: translateY(100%);
+			opacity: 0;
+		}
+		to {
+			transform: translateY(0);
+			opacity: 1;
+		}
 	}
-	.animate-fade-in { animation: fade-in 0.15s ease-out; }
-	.animate-slide-up { animation: slide-up 0.2s ease-out; }
+	.animate-fade-in {
+		animation: fade-in 0.15s ease-out;
+	}
+	.animate-slide-up {
+		animation: slide-up 0.2s ease-out;
+	}
 </style>

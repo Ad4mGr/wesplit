@@ -24,7 +24,7 @@
 
 <div class="w-full {className}">
 	{#if label}
-		<label class="block text-sm font-medium text-text-secondary mb-1.5">
+		<label class="mb-1.5 block text-sm font-medium text-text-secondary">
 			{label}
 			<input
 				{type}
@@ -32,7 +32,7 @@
 				{disabled}
 				bind:value
 				{onkeydown}
-				class="w-full mt-1.5 px-3 py-2 text-sm bg-surface-raised border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors disabled:opacity-40"
+				class="mt-1.5 w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none disabled:opacity-40"
 			/>
 		</label>
 	{:else}
@@ -42,7 +42,7 @@
 			{disabled}
 			bind:value
 			{onkeydown}
-			class="w-full px-3 py-2 text-sm bg-surface-raised border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors disabled:opacity-40"
+			class="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none disabled:opacity-40"
 		/>
 	{/if}
 	{#if error}

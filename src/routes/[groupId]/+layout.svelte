@@ -2,14 +2,16 @@
 	import { page } from '$app/stores';
 	import TabNav from '$lib/components/TabNav.svelte';
 
-	let groupId = $derived($page.params.groupId);
+	let groupId = $derived($page.url.pathname.split('/')[1]);
 	let currentTab = $derived($page.url.pathname.split('/').pop() ?? '');
 
 	const tabs = $derived([
-		{ label: 'Expenses', href: 'expenses', active: currentTab === 'expenses' || currentTab === groupId },
+		{ label: 'Dashboard', href: '', active: currentTab === groupId },
+		{ label: 'Expenses', href: 'expenses', active: currentTab === 'expenses' },
 		{ label: 'Balances', href: 'balances', active: currentTab === 'balances' },
 		{ label: 'Settle', href: 'settle', active: currentTab === 'settle' },
 		{ label: 'Members', href: 'members', active: currentTab === 'members' },
+		{ label: 'Activity', href: 'activity', active: currentTab === 'activity' },
 		{ label: 'Settings', href: 'settings', active: currentTab === 'settings' }
 	]);
 

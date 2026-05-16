@@ -49,19 +49,19 @@
 	<title>Join Group - WeSplit</title>
 </svelte:head>
 
-<div class="flex items-center justify-center min-h-[60vh]">
+<div class="flex min-h-[60vh] items-center justify-center">
 	<div class="w-full max-w-sm space-y-6">
 		<div class="text-center">
-			<div class="inline-flex p-3 bg-accent-dim rounded-xl mb-4">
+			<div class="mb-4 inline-flex rounded-xl bg-accent-dim p-3">
 				<CheckCircle size={24} class="text-accent" />
 			</div>
-			<h1 class="text-xl font-semibold mb-1">Join a group</h1>
-			<p class="text-text-secondary text-sm">Enter your name to join</p>
+			<h1 class="mb-1 text-xl font-semibold">Join a group</h1>
+			<p class="text-sm text-text-secondary">Enter your name to join</p>
 		</div>
 
 		{#if code}
-			<div class="p-3 bg-surface-raised border border-border rounded-lg">
-				<p class="text-xs text-text-muted mb-1">Invite code</p>
+			<div class="rounded-lg border border-border bg-surface-raised p-3">
+				<p class="mb-1 text-xs text-text-muted">Invite code</p>
 				<p class="font-mono text-sm text-text-primary">{code.toUpperCase()}</p>
 			</div>
 		{/if}
@@ -71,7 +71,8 @@
 			<Button fullWidth disabled={loading || !userName.trim() || !code.trim()} onclick={joinGroup}>
 				{#if loading}
 					<span class="flex items-center justify-center gap-2">
-						<span class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+						<span class="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black"
+						></span>
 						Joining...
 					</span>
 				{:else}

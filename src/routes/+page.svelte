@@ -22,7 +22,9 @@
 	let joinError = $state('');
 	let copiedCode = $state<string | null>(null);
 
-	const groups = useQuery(api.groups.listByMember, () => (userName.trim() ? { userName: userName.trim() } : 'skip'));
+	const groups = useQuery(api.groups.listByMember, () =>
+		userName.trim() ? { userName: userName.trim() } : 'skip'
+	);
 
 	let client: ReturnType<typeof useConvexClient>;
 
@@ -89,7 +91,9 @@
 	function copyInviteCode(code: string) {
 		navigator.clipboard.writeText(code);
 		copiedCode = code;
-		setTimeout(() => { copiedCode = null; }, 2000);
+		setTimeout(() => {
+			copiedCode = null;
+		}, 2000);
 	}
 
 	function confirmDelete(id: Id<'groups'>, name: string) {
@@ -115,7 +119,11 @@
 
 <Modal bind:open={showNameModal} title="What's your name?">
 	<div class="space-y-4">
-		<Input bind:value={userName} placeholder="Enter your name" onkeydown={(e) => e.key === 'Enter' && saveName()} />
+		<Input
+			bind:value={userName}
+			placeholder="Enter your name"
+			onkeydown={(e) => e.key === 'Enter' && saveName()}
+		/>
 		<Button fullWidth onclick={saveName}>Continue</Button>
 	</div>
 </Modal>
@@ -123,13 +131,18 @@
 <Modal bind:open={showCreateModal} title="Create a group">
 	<div class="space-y-4">
 		<Input bind:value={groupName} label="Group name" placeholder="e.g. Apartment 4B" />
-		<Input bind:value={groupDescription} label="Description (optional)" placeholder="e.g. Summer trip expenses" />
+		<Input
+			bind:value={groupDescription}
+			label="Description (optional)"
+			placeholder="e.g. Summer trip expenses"
+		/>
 		<div class="flex gap-2 pt-2">
-			<Button variant="ghost" fullWidth onclick={() => showCreateModal = false}>Cancel</Button>
+			<Button variant="ghost" fullWidth onclick={() => (showCreateModal = false)}>Cancel</Button>
 			<Button fullWidth disabled={creating || !groupName.trim()} onclick={handleCreateGroup}>
 				{#if creating}
 					<span class="flex items-center justify-center gap-2">
-						<span class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+						<span class="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black"
+						></span>
 						Creating...
 					</span>
 				{:else}
@@ -142,16 +155,21 @@
 
 <Modal bind:open={showJoinModal} title="Join a group">
 	<div class="space-y-4">
-		<Input bind:value={inviteCode} label="Invite code or link" placeholder="Paste invite code or link" />
+		<Input
+			bind:value={inviteCode}
+			label="Invite code or link"
+			placeholder="Paste invite code or link"
+		/>
 		{#if joinError}
 			<p class="text-sm text-danger">{joinError}</p>
 		{/if}
 		<div class="flex gap-2 pt-2">
-			<Button variant="ghost" fullWidth onclick={() => showJoinModal = false}>Cancel</Button>
+			<Button variant="ghost" fullWidth onclick={() => (showJoinModal = false)}>Cancel</Button>
 			<Button fullWidth disabled={joining || !inviteCode.trim()} onclick={handleJoinGroup}>
 				{#if joining}
 					<span class="flex items-center justify-center gap-2">
-						<span class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+						<span class="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black"
+						></span>
 						Joining...
 					</span>
 				{:else}
@@ -165,9 +183,13 @@
 <Modal bind:open={showDeleteModal} title="Delete group" size="sm">
 	{#if deleteTarget}
 		<div class="space-y-4">
-			<p class="text-sm text-text-secondary">Are you sure you want to delete <strong class="text-text-primary">{deleteTarget.name}</strong>? This will permanently remove all members, expenses, and settlement history.</p>
+			<p class="text-sm text-text-secondary">
+				Are you sure you want to delete <strong class="text-text-primary"
+					>{deleteTarget.name}</strong
+				>? This will permanently remove all members, expenses, and settlement history.
+			</p>
 			<div class="flex gap-2">
-				<Button variant="ghost" fullWidth onclick={() => showDeleteModal = false}>Cancel</Button>
+				<Button variant="ghost" fullWidth onclick={() => (showDeleteModal = false)}>Cancel</Button>
 				<Button variant="danger" fullWidth onclick={deleteGroup}>Delete</Button>
 			</div>
 		</div>
@@ -175,19 +197,19 @@
 </Modal>
 
 <div class="space-y-6">
-	<div class="text-center py-8">
-		<h1 class="text-2xl font-bold tracking-tight mb-2">Your Groups</h1>
-		<p class="text-text-secondary text-sm">Track expenses, split fairly, settle up</p>
+	<div class="py-8 text-center">
+		<h1 class="mb-2 text-2xl font-bold tracking-tight">Your Groups</h1>
+		<p class="text-sm text-text-secondary">Track expenses, split fairly, settle up</p>
 	</div>
 
 	<div class="flex gap-2">
-		<Button fullWidth onclick={() => showCreateModal = true}>
+		<Button fullWidth onclick={() => (showCreateModal = true)}>
 			<span class="flex items-center justify-center gap-2">
 				<Plus size={16} />
 				New Group
 			</span>
 		</Button>
-		<Button variant="secondary" fullWidth onclick={() => showJoinModal = true}>
+		<Button variant="secondary" fullWidth onclick={() => (showJoinModal = true)}>
 			<span class="flex items-center justify-center gap-2">
 				<Link size={16} />
 				Join
@@ -198,12 +220,12 @@
 	{#if groups.isLoading}
 		<div class="space-y-2">
 			{#each [1, 2, 3] as _}
-				<div class="p-4 bg-surface border border-border rounded-lg animate-pulse">
+				<div class="animate-pulse rounded-lg border border-border bg-surface p-4">
 					<div class="flex items-center gap-3">
-						<div class="w-10 h-10 bg-surface-raised rounded-md"></div>
+						<div class="h-10 w-10 rounded-md bg-surface-raised"></div>
 						<div class="flex-1 space-y-2">
-							<div class="h-4 bg-surface-raised rounded w-1/3"></div>
-							<div class="h-3 bg-surface-raised rounded w-1/4"></div>
+							<div class="h-4 w-1/3 rounded bg-surface-raised"></div>
+							<div class="h-3 w-1/4 rounded bg-surface-raised"></div>
 						</div>
 					</div>
 				</div>
@@ -214,11 +236,11 @@
 			{#each groups.data as group (group._id)}
 				<a
 					href="/{group._id}"
-					class="block p-4 bg-surface border border-border rounded-lg hover:border-border-hover transition-colors group"
+					class="group block rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-hover"
 				>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-3">
-							<div class="p-2 bg-accent-dim rounded-md">
+							<div class="rounded-md bg-accent-dim p-2">
 								<Users size={18} class="text-accent" />
 							</div>
 							<div>
@@ -231,16 +253,22 @@
 						<div class="flex items-center gap-1">
 							<button
 								type="button"
-								onclick={(e: MouseEvent) => { e.preventDefault(); confirmDelete(group._id, group.name); }}
-								class="p-2 text-text-muted hover:text-danger opacity-0 group-hover:opacity-100 transition-all"
+								onclick={(e: MouseEvent) => {
+									e.preventDefault();
+									confirmDelete(group._id, group.name);
+								}}
+								class="p-2 text-text-muted opacity-0 transition-all group-hover:opacity-100 hover:text-danger"
 								title="Delete group"
 							>
 								<Trash2 size={16} />
 							</button>
 							<button
 								type="button"
-								onclick={(e: MouseEvent) => { e.preventDefault(); copyInviteCode(group.inviteCode); }}
-								class="p-2 text-text-muted hover:text-text-primary opacity-0 group-hover:opacity-100 transition-all"
+								onclick={(e: MouseEvent) => {
+									e.preventDefault();
+									copyInviteCode(group.inviteCode);
+								}}
+								class="p-2 text-text-muted opacity-0 transition-all group-hover:opacity-100 hover:text-text-primary"
 								title="Copy invite link"
 							>
 								{#if copiedCode === group.inviteCode}
@@ -255,10 +283,10 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="text-center py-12 border border-border border-dashed rounded-lg">
-			<Users size={32} class="mx-auto text-text-muted mb-3" />
-			<p class="text-text-secondary text-sm">No groups yet</p>
-			<p class="text-text-muted text-xs mt-1">Create one or join with an invite code</p>
+		<div class="rounded-lg border border-dashed border-border py-12 text-center">
+			<Users size={32} class="mx-auto mb-3 text-text-muted" />
+			<p class="text-sm text-text-secondary">No groups yet</p>
+			<p class="mt-1 text-xs text-text-muted">Create one or join with an invite code</p>
 		</div>
 	{/if}
 </div>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import { DollarSign, Plus, Trash2, Pencil } from '@lucide/svelte';
+	import { DollarSign, Plus, Trash2, Pencil, Search, Filter, Download } from '@lucide/svelte';
 	import { useQuery, useConvexClient } from 'convex-svelte';
 	import { api } from '../../../convex/_generated/api';
 	import type { Id } from '../../../convex/_generated/dataModel';
@@ -21,7 +21,7 @@
 		{ symbol: 'Fr', code: 'CHF', name: 'Swiss Franc' },
 		{ symbol: '₩', code: 'KRW', name: 'South Korean Won' },
 		{ symbol: 'R$', code: 'BRL', name: 'Brazilian Real' },
-		{ symbol: 'zł', code: 'PLN', name: 'Polish Zloty' },
+		{ symbol: 'zł', code: 'PLN', name: 'Polish Zloty' }
 	];
 
 	let groupId = $derived($page.params.groupId as Id<'groups'>);
@@ -42,6 +42,75 @@
 	let splitAmong = $state<Id<'members'>[]>([]);
 	let splitDetails = $state<{ memberId: Id<'members'>; value: string }[]>([]);
 	let submitting = $state(false);
+	let expenseDate = $state(Date.now());
+
+	let searchQuery = $state('');
+	let filterCategory = $state('');
+	let filterMember = $state<Id<'members'> | ''>('');
+	let filterDateFrom = $state('');
+	let filterDateTo = $state('');
+	let filterAmountMin = $state('');
+	let filterAmountMax = $state('');
+	let showFilters = $state(false);
+
+	const filteredExpenses = $derived(
+		(expenses.data ?? []).filter((e) => {
+			if (
+				searchQuery &&
+				!e.description.toLowerCase().includes(searchQuery.toLowerCase()) &&
+				!(e.category ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+			)
+				return false;
+			if (filterCategory && e.category !== filterCategory) return false;
+			if (filterMember && e.paidBy !== filterMember) return false;
+			if (filterDateFrom) {
+				const from = new Date(filterDateFrom).getTime();
+				if (e.date < from) return false;
+			}
+			if (filterDateTo) {
+				const to = new Date(filterDateTo + 'T23:59:59').getTime();
+				if (e.date > to) return false;
+			}
+			if (filterAmountMin && e.amount < parseFloat(filterAmountMin)) return false;
+			if (filterAmountMax && e.amount > parseFloat(filterAmountMax)) return false;
+			return true;
+		})
+	);
+
+	const categories = $derived([
+		...new Set((expenses.data ?? []).map((e) => e.category).filter(Boolean))
+	] as string[]);
+
+	function exportCSV() {
+		if (!filteredExpenses.length) return;
+		const headers = ['Date', 'Description', 'Category', 'Amount', 'Paid By', 'Split Type'];
+		const rows = filteredExpenses.map((e) => [
+			new Date(e.date).toLocaleDateString('en-US'),
+			`"${e.description}"`,
+			e.category || '',
+			e.amount.toFixed(2),
+			e.payerName,
+			e.splitType
+		]);
+		const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+		const blob = new Blob([csv], { type: 'text/csv' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `${group.data?.name ?? 'expenses'}-${new Date().toISOString().split('T')[0]}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	function clearFilters() {
+		searchQuery = '';
+		filterCategory = '';
+		filterMember = '';
+		filterDateFrom = '';
+		filterDateTo = '';
+		filterAmountMin = '';
+		filterAmountMax = '';
+	}
 
 	onMount(() => {
 		client = useConvexClient();
@@ -49,7 +118,7 @@
 
 	function getCurrencySymbol(): string {
 		if (!group.data?.currency) return '$';
-		const found = CURRENCIES.find(c => c.code === group.data!.currency);
+		const found = CURRENCIES.find((c) => c.code === group.data!.currency);
 		return found?.symbol ?? '$';
 	}
 
@@ -70,6 +139,7 @@
 		amount = '';
 		category = '';
 		splitType = 'equal';
+		expenseDate = Date.now();
 		showAddModal = true;
 	}
 
@@ -80,10 +150,14 @@
 		amount = expense.amount.toString();
 		category = expense.category || '';
 		paidBy = expense.paidBy;
-		splitType = expense.splitType;
-		splitAmong = expense.splitAmong;
+		splitType = expense.splitType || 'equal';
+		splitAmong = expense.splitAmong || members.data.map((m: any) => m._id);
+		expenseDate = expense.date || Date.now();
 		if (expense.splitDetails) {
-			splitDetails = expense.splitDetails.map((d: any) => ({ memberId: d.memberId, value: d.value.toString() }));
+			splitDetails = expense.splitDetails.map((d: any) => ({
+				memberId: d.memberId,
+				value: d.value.toString()
+			}));
 		} else {
 			splitDetails = members.data.map((m: any) => ({ memberId: m._id, value: '' }));
 		}
@@ -91,11 +165,11 @@
 	}
 
 	function getSplitValue(memberId: Id<'members'>): string {
-		return splitDetails.find(d => d.memberId === memberId)?.value ?? '';
+		return splitDetails.find((d) => d.memberId === memberId)?.value ?? '';
 	}
 
 	function setSplitValue(memberId: Id<'members'>, value: string) {
-		const detail = splitDetails.find(d => d.memberId === memberId);
+		const detail = splitDetails.find((d) => d.memberId === memberId);
 		if (detail) {
 			detail.value = value;
 		}
@@ -103,7 +177,7 @@
 
 	function toggleSplit(memberId: Id<'members'>) {
 		if (splitAmong.includes(memberId)) {
-			splitAmong = splitAmong.filter(id => id !== memberId);
+			splitAmong = splitAmong.filter((id) => id !== memberId);
 		} else {
 			splitAmong = [...splitAmong, memberId];
 		}
@@ -130,12 +204,13 @@
 					paidBy,
 					splitAmong,
 					category: category.trim() || undefined,
-					date: Date.now()
+					date: expenseDate,
+					notes: undefined
 				});
 			} else if (splitType === 'exact') {
 				const details = splitDetails
-					.filter(d => parseFloat(d.value) > 0)
-					.map(d => ({ memberId: d.memberId, value: parseFloat(d.value) }));
+					.filter((d) => parseFloat(d.value) > 0)
+					.map((d) => ({ memberId: d.memberId, value: parseFloat(d.value) }));
 				await client.mutation(api.expenses.createExact, {
 					groupId,
 					description: description.trim(),
@@ -143,12 +218,13 @@
 					paidBy,
 					splitDetails: details,
 					category: category.trim() || undefined,
-					date: Date.now()
+					date: expenseDate,
+					notes: undefined
 				});
 			} else {
 				const details = splitDetails
-					.filter(d => parseFloat(d.value) > 0)
-					.map(d => ({ memberId: d.memberId, value: parseFloat(d.value) }));
+					.filter((d) => parseFloat(d.value) > 0)
+					.map((d) => ({ memberId: d.memberId, value: parseFloat(d.value) }));
 				await client.mutation(api.expenses.createPercentage, {
 					groupId,
 					description: description.trim(),
@@ -156,7 +232,8 @@
 					paidBy,
 					splitDetails: details,
 					category: category.trim() || undefined,
-					date: Date.now()
+					date: expenseDate,
+					notes: undefined
 				});
 			}
 			resetForm();
@@ -172,14 +249,22 @@
 		submitting = true;
 		try {
 			const amt = parseFloat(amount);
-			await client.mutation(api.expenses.update, {
+			const updates: any = {
 				expenseId: editingExpense._id,
 				description: description.trim(),
 				amount: amt,
 				paidBy,
 				category: category.trim() || undefined,
-				date: editingExpense.date
-			});
+				date: expenseDate,
+				splitAmong,
+				splitType
+			};
+			if (splitType === 'exact' || splitType === 'percentage') {
+				updates.splitDetails = splitDetails
+					.filter((d) => parseFloat(d.value) > 0)
+					.map((d) => ({ memberId: d.memberId, value: parseFloat(d.value) }));
+			}
+			await client.mutation(api.expenses.update, updates);
 			showEditModal = false;
 			editingExpense = null;
 		} catch (e) {
@@ -197,6 +282,7 @@
 		splitType = 'equal';
 		splitAmong = [];
 		splitDetails = [];
+		expenseDate = Date.now();
 	}
 
 	async function deleteExpense(expenseId: Id<'expenses'>) {
@@ -210,16 +296,39 @@
 
 <Modal bind:open={showAddModal} title="Add expense" size="lg">
 	<div class="space-y-4">
-		<Input bind:value={description} label="Description" placeholder="e.g. Groceries, Rent, Dinner" />
+		<Input
+			bind:value={description}
+			label="Description"
+			placeholder="e.g. Groceries, Rent, Dinner"
+		/>
 		<div class="grid grid-cols-2 gap-3">
-			<Input bind:value={amount} type="number" label="Amount ({getCurrencySymbol()})" placeholder="0.00" />
+			<Input
+				bind:value={amount}
+				type="number"
+				label="Amount ({getCurrencySymbol()})"
+				placeholder="0.00"
+			/>
 			<Input bind:value={category} label="Category" placeholder="e.g. Food" />
+		</div>
+		<div>
+			<label class="mb-1.5 block text-sm font-medium text-text-secondary">Date</label>
+			<input
+				type="date"
+				value={new Date(expenseDate).toISOString().split('T')[0]}
+				oninput={(e) => {
+					expenseDate = new Date((e.target as HTMLInputElement).value).getTime();
+				}}
+				class="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary transition-colors focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none"
+			/>
 		</div>
 
 		{#if members.data && members.data.length > 0}
 			<div>
-				<label class="block text-sm font-medium text-text-secondary mb-1.5">Paid by</label>
-				<select bind:value={paidBy} class="w-full px-3 py-2 text-sm bg-surface-raised border border-border rounded-md text-text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors">
+				<label class="mb-1.5 block text-sm font-medium text-text-secondary">Paid by</label>
+				<select
+					bind:value={paidBy}
+					class="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary transition-colors focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none"
+				>
 					{#each members.data as member}
 						<option value={member._id}>{member.name}</option>
 					{/each}
@@ -227,47 +336,76 @@
 			</div>
 
 			<div>
-				<label class="block text-sm font-medium text-text-secondary mb-1.5">Split type</label>
-				<div class="flex gap-1 bg-surface-raised border border-border rounded-md p-1">
-					<button type="button" onclick={() => splitType = 'equal'} class="flex-1 py-1.5 text-xs font-medium rounded transition-colors {splitType === 'equal' ? 'bg-accent text-black' : 'text-text-secondary hover:text-text-primary'}">Equal</button>
-					<button type="button" onclick={() => splitType = 'exact'} class="flex-1 py-1.5 text-xs font-medium rounded transition-colors {splitType === 'exact' ? 'bg-accent text-black' : 'text-text-secondary hover:text-text-primary'}">Exact</button>
-					<button type="button" onclick={() => splitType = 'percentage'} class="flex-1 py-1.5 text-xs font-medium rounded transition-colors {splitType === 'percentage' ? 'bg-accent text-black' : 'text-text-secondary hover:text-text-primary'}">%</button>
+				<label class="mb-1.5 block text-sm font-medium text-text-secondary">Split type</label>
+				<div class="flex gap-1 rounded-md border border-border bg-surface-raised p-1">
+					<button
+						type="button"
+						onclick={() => (splitType = 'equal')}
+						class="flex-1 rounded py-1.5 text-xs font-medium transition-colors {splitType ===
+						'equal'
+							? 'bg-accent text-black'
+							: 'text-text-secondary hover:text-text-primary'}">Equal</button
+					>
+					<button
+						type="button"
+						onclick={() => (splitType = 'exact')}
+						class="flex-1 rounded py-1.5 text-xs font-medium transition-colors {splitType ===
+						'exact'
+							? 'bg-accent text-black'
+							: 'text-text-secondary hover:text-text-primary'}">Exact</button
+					>
+					<button
+						type="button"
+						onclick={() => (splitType = 'percentage')}
+						class="flex-1 rounded py-1.5 text-xs font-medium transition-colors {splitType ===
+						'percentage'
+							? 'bg-accent text-black'
+							: 'text-text-secondary hover:text-text-primary'}">%</button
+					>
 				</div>
 			</div>
 
 			{#if splitType === 'equal'}
 				<div>
-					<label class="block text-sm font-medium text-text-secondary mb-1.5">Split among</label>
+					<label class="mb-1.5 block text-sm font-medium text-text-secondary">Split among</label>
 					<div class="flex flex-wrap gap-2">
 						{#each members.data as member}
 							<button
 								type="button"
 								onclick={() => toggleSplit(member._id)}
-								class="px-3 py-1.5 text-xs font-medium rounded-full border transition-colors {splitAmong.includes(member._id) ? 'bg-accent-dim border-accent text-accent' : 'border-border text-text-secondary hover:border-border-hover'}"
+								class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors {splitAmong.includes(
+									member._id
+								)
+									? 'border-accent bg-accent-dim text-accent'
+									: 'border-border text-text-secondary hover:border-border-hover'}"
 							>
 								{member.name}
 							</button>
 						{/each}
 					</div>
 					{#if splitAmong.length > 0}
-						<p class="mt-2 text-xs text-text-muted">{splitAmong.length} people &middot; {formatCurrency(getShareAmount())} each</p>
+						<p class="mt-2 text-xs text-text-muted">
+							{splitAmong.length} people &middot; {formatCurrency(getShareAmount())} each
+						</p>
 					{/if}
 				</div>
 			{:else}
 				<div>
-					<label class="block text-sm font-medium text-text-secondary mb-1.5">
-						{splitType === 'exact' ? `Amount per person (${getCurrencySymbol()})` : 'Percentage per person (%)'}
+					<label class="mb-1.5 block text-sm font-medium text-text-secondary">
+						{splitType === 'exact'
+							? `Amount per person (${getCurrencySymbol()})`
+							: 'Percentage per person (%)'}
 					</label>
 					<div class="space-y-2">
 						{#each members.data as member}
 							<div class="flex items-center gap-2">
-								<span class="text-sm text-text-secondary w-24 truncate">{member.name}</span>
+								<span class="w-24 truncate text-sm text-text-secondary">{member.name}</span>
 								<input
 									type="number"
 									value={getSplitValue(member._id)}
 									oninput={(e) => setSplitValue(member._id, (e.target as HTMLInputElement).value)}
 									placeholder={splitType === 'exact' ? '0.00' : '0'}
-									class="flex-1 px-3 py-1.5 text-sm bg-surface-raised border border-border rounded-md text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors"
+									class="flex-1 rounded-md border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none"
 								/>
 							</div>
 						{/each}
@@ -278,10 +416,15 @@
 
 		<div class="flex gap-2 pt-2">
 			<Button variant="ghost" fullWidth onclick={resetForm}>Cancel</Button>
-			<Button fullWidth disabled={submitting || !description.trim() || !amount} onclick={submitExpense}>
+			<Button
+				fullWidth
+				disabled={submitting || !description.trim() || !amount}
+				onclick={submitExpense}
+			>
 				{#if submitting}
 					<span class="flex items-center justify-center gap-2">
-						<span class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+						<span class="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black"
+						></span>
 						Adding...
 					</span>
 				{:else}
@@ -294,29 +437,142 @@
 
 <Modal bind:open={showEditModal} title="Edit expense" size="lg">
 	<div class="space-y-4">
-		<Input bind:value={description} label="Description" placeholder="e.g. Groceries, Rent, Dinner" />
+		<Input
+			bind:value={description}
+			label="Description"
+			placeholder="e.g. Groceries, Rent, Dinner"
+		/>
 		<div class="grid grid-cols-2 gap-3">
-			<Input bind:value={amount} type="number" label="Amount ({getCurrencySymbol()})" placeholder="0.00" />
+			<Input
+				bind:value={amount}
+				type="number"
+				label="Amount ({getCurrencySymbol()})"
+				placeholder="0.00"
+			/>
 			<Input bind:value={category} label="Category" placeholder="e.g. Food" />
+		</div>
+		<div>
+			<label class="mb-1.5 block text-sm font-medium text-text-secondary">Date</label>
+			<input
+				type="date"
+				value={new Date(expenseDate).toISOString().split('T')[0]}
+				oninput={(e) => {
+					expenseDate = new Date((e.target as HTMLInputElement).value).getTime();
+				}}
+				class="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary transition-colors focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none"
+			/>
 		</div>
 
 		{#if members.data && members.data.length > 0}
 			<div>
-				<label class="block text-sm font-medium text-text-secondary mb-1.5">Paid by</label>
-				<select bind:value={paidBy} class="w-full px-3 py-2 text-sm bg-surface-raised border border-border rounded-md text-text-primary focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors">
+				<label class="mb-1.5 block text-sm font-medium text-text-secondary">Paid by</label>
+				<select
+					bind:value={paidBy}
+					class="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary transition-colors focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none"
+				>
 					{#each members.data as member}
 						<option value={member._id}>{member.name}</option>
 					{/each}
 				</select>
 			</div>
+
+			<div>
+				<label class="mb-1.5 block text-sm font-medium text-text-secondary">Split type</label>
+				<div class="flex gap-1 rounded-md border border-border bg-surface-raised p-1">
+					<button
+						type="button"
+						onclick={() => (splitType = 'equal')}
+						class="flex-1 rounded py-1.5 text-xs font-medium transition-colors {splitType ===
+						'equal'
+							? 'bg-accent text-black'
+							: 'text-text-secondary hover:text-text-primary'}">Equal</button
+					>
+					<button
+						type="button"
+						onclick={() => (splitType = 'exact')}
+						class="flex-1 rounded py-1.5 text-xs font-medium transition-colors {splitType ===
+						'exact'
+							? 'bg-accent text-black'
+							: 'text-text-secondary hover:text-text-primary'}">Exact</button
+					>
+					<button
+						type="button"
+						onclick={() => (splitType = 'percentage')}
+						class="flex-1 rounded py-1.5 text-xs font-medium transition-colors {splitType ===
+						'percentage'
+							? 'bg-accent text-black'
+							: 'text-text-secondary hover:text-text-primary'}">%</button
+					>
+				</div>
+			</div>
+
+			{#if splitType === 'equal'}
+				<div>
+					<label class="mb-1.5 block text-sm font-medium text-text-secondary">Split among</label>
+					<div class="flex flex-wrap gap-2">
+						{#each members.data as member}
+							<button
+								type="button"
+								onclick={() => toggleSplit(member._id)}
+								class="rounded-full border px-3 py-1.5 text-xs font-medium transition-colors {splitAmong.includes(
+									member._id
+								)
+									? 'border-accent bg-accent-dim text-accent'
+									: 'border-border text-text-secondary hover:border-border-hover'}"
+							>
+								{member.name}
+							</button>
+						{/each}
+					</div>
+					{#if splitAmong.length > 0}
+						<p class="mt-2 text-xs text-text-muted">
+							{splitAmong.length} people &middot; {formatCurrency(getShareAmount())} each
+						</p>
+					{/if}
+				</div>
+			{:else}
+				<div>
+					<label class="mb-1.5 block text-sm font-medium text-text-secondary">
+						{splitType === 'exact'
+							? `Amount per person (${getCurrencySymbol()})`
+							: 'Percentage per person (%)'}
+					</label>
+					<div class="space-y-2">
+						{#each members.data as member}
+							<div class="flex items-center gap-2">
+								<span class="w-24 truncate text-sm text-text-secondary">{member.name}</span>
+								<input
+									type="number"
+									value={getSplitValue(member._id)}
+									oninput={(e) => setSplitValue(member._id, (e.target as HTMLInputElement).value)}
+									placeholder={splitType === 'exact' ? '0.00' : '0'}
+									class="flex-1 rounded-md border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none"
+								/>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
 		{/if}
 
 		<div class="flex gap-2 pt-2">
-			<Button variant="ghost" fullWidth onclick={() => { showEditModal = false; editingExpense = null; }}>Cancel</Button>
-			<Button fullWidth disabled={submitting || !description.trim() || !amount} onclick={updateExpense}>
+			<Button
+				variant="ghost"
+				fullWidth
+				onclick={() => {
+					showEditModal = false;
+					editingExpense = null;
+				}}>Cancel</Button
+			>
+			<Button
+				fullWidth
+				disabled={submitting || !description.trim() || !amount}
+				onclick={updateExpense}
+			>
 				{#if submitting}
 					<span class="flex items-center justify-center gap-2">
-						<span class="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></span>
+						<span class="h-4 w-4 animate-spin rounded-full border-2 border-black/30 border-t-black"
+						></span>
 						Saving...
 					</span>
 				{:else}
@@ -332,42 +588,153 @@
 		<div>
 			<h2 class="text-lg font-semibold">Expenses</h2>
 			{#if expenses.data}
-				<p class="text-xs text-text-muted">{expenses.data.length} expense{expenses.data.length !== 1 ? 's' : ''}</p>
+				<p class="text-xs text-text-muted">
+					{filteredExpenses.length} of {expenses.data.length} expense{expenses.data.length !== 1
+						? 's'
+						: ''}
+				</p>
 			{/if}
 		</div>
-		<Button size="sm" onclick={openAddModal} disabled={!members.data || members.data.length === 0}>
-			<span class="flex items-center gap-1.5">
-				<Plus size={14} />
-				Add
-			</span>
-		</Button>
+		<div class="flex gap-2">
+			<Button variant="secondary" size="sm" onclick={exportCSV} disabled={!filteredExpenses.length}>
+				<span class="flex items-center gap-1.5">
+					<Download size={14} />
+					Export
+				</span>
+			</Button>
+			<Button
+				size="sm"
+				onclick={openAddModal}
+				disabled={!members.data || members.data.length === 0}
+			>
+				<span class="flex items-center gap-1.5">
+					<Plus size={14} />
+					Add
+				</span>
+			</Button>
+		</div>
+	</div>
+
+	<!-- Search and Filters -->
+	<div class="space-y-2">
+		<div class="flex gap-2">
+			<div class="relative flex-1">
+				<Search
+					size={16}
+					class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-muted"
+				/>
+				<input
+					type="text"
+					bind:value={searchQuery}
+					placeholder="Search expenses..."
+					class="w-full rounded-md border border-border bg-surface-raised py-2 pr-3 pl-9 text-sm text-text-primary transition-colors placeholder:text-text-muted focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none"
+				/>
+			</div>
+			<button
+				type="button"
+				onclick={() => (showFilters = !showFilters)}
+				class="rounded-md border border-border px-3 py-2 text-text-secondary transition-colors hover:border-border-hover hover:text-text-primary {showFilters ||
+				filterCategory ||
+				filterMember ||
+				filterDateFrom ||
+				filterDateTo ||
+				filterAmountMin ||
+				filterAmountMax
+					? 'border-accent text-accent'
+					: ''}"
+			>
+				<Filter size={16} />
+			</button>
+		</div>
+
+		{#if showFilters}
+			<div class="space-y-2 rounded-lg border border-border bg-surface p-3">
+				<div class="grid grid-cols-2 gap-2">
+					<select
+						bind:value={filterCategory}
+						class="rounded-md border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
+					>
+						<option value="">All categories</option>
+						{#each categories as cat}
+							<option value={cat}>{cat}</option>
+						{/each}
+					</select>
+					{#if members.data}
+						<select
+							bind:value={filterMember}
+							class="rounded-md border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
+						>
+							<option value="">All members</option>
+							{#each members.data as member}
+								<option value={member._id}>{member.name}</option>
+							{/each}
+						</select>
+					{/if}
+				</div>
+				<div class="grid grid-cols-2 gap-2">
+					<input
+						type="date"
+						bind:value={filterDateFrom}
+						placeholder="From date"
+						class="rounded-md border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
+					/>
+					<input
+						type="date"
+						bind:value={filterDateTo}
+						placeholder="To date"
+						class="rounded-md border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary focus:border-accent focus:outline-none"
+					/>
+				</div>
+				<div class="grid grid-cols-2 gap-2">
+					<input
+						type="number"
+						bind:value={filterAmountMin}
+						placeholder="Min amount"
+						class="rounded-md border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+					/>
+					<input
+						type="number"
+						bind:value={filterAmountMax}
+						placeholder="Max amount"
+						class="rounded-md border border-border bg-surface-raised px-3 py-1.5 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none"
+					/>
+				</div>
+				<button type="button" onclick={clearFilters} class="text-xs text-accent hover:underline"
+					>Clear all filters</button
+				>
+			</div>
+		{/if}
 	</div>
 
 	{#if expenses.isLoading || members.isLoading}
 		<div class="space-y-2">
 			{#each [1, 2, 3] as _}
-				<div class="p-4 bg-surface border border-border rounded-lg animate-pulse">
+				<div class="animate-pulse rounded-lg border border-border bg-surface p-4">
 					<div class="flex justify-between">
 						<div class="space-y-2">
-							<div class="h-4 bg-surface-raised rounded w-32"></div>
-							<div class="h-3 bg-surface-raised rounded w-20"></div>
+							<div class="h-4 w-32 rounded bg-surface-raised"></div>
+							<div class="h-3 w-20 rounded bg-surface-raised"></div>
 						</div>
-						<div class="h-4 bg-surface-raised rounded w-16"></div>
+						<div class="h-4 w-16 rounded bg-surface-raised"></div>
 					</div>
 				</div>
 			{/each}
 		</div>
-	{:else if expenses.data && expenses.data.length > 0}
+	{:else if filteredExpenses.length > 0}
 		<div class="space-y-2">
-			{#each expenses.data as expense (expense._id)}
-				<div class="p-4 bg-surface border border-border rounded-lg group hover:border-border-hover transition-colors">
+			{#each filteredExpenses as expense (expense._id)}
+				<div
+					class="group rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-hover"
+				>
 					<div class="flex items-center justify-between">
-						<div class="flex-1 min-w-0">
-							<p class="font-medium text-text-primary truncate">{expense.description}</p>
-							<p class="text-xs text-text-muted mt-0.5">
+						<div class="min-w-0 flex-1">
+							<p class="truncate font-medium text-text-primary">{expense.description}</p>
+							<p class="mt-0.5 text-xs text-text-muted">
 								{expense.payerName} &middot; {formatDate(expense.date)}
 								{#if expense.category}
-									<span class="ml-1 px-1.5 py-0.5 bg-surface-raised rounded text-[10px]">{expense.category}</span>
+									<span class="ml-1 rounded bg-surface-raised px-1.5 py-0.5 text-[10px]"
+										>{expense.category}</span
+									>
 								{/if}
 							</p>
 						</div>
@@ -376,7 +743,7 @@
 							<button
 								type="button"
 								onclick={() => openEditModal(expense)}
-								class="p-1.5 text-text-muted opacity-0 group-hover:opacity-100 hover:text-text-primary hover:bg-surface-raised rounded transition-all"
+								class="rounded p-1.5 text-text-muted opacity-0 transition-all group-hover:opacity-100 hover:bg-surface-raised hover:text-text-primary"
 								title="Edit expense"
 							>
 								<Pencil size={14} />
@@ -384,7 +751,7 @@
 							<button
 								type="button"
 								onclick={() => deleteExpense(expense._id)}
-								class="p-1.5 text-text-muted opacity-0 group-hover:opacity-100 hover:text-danger hover:bg-danger-dim rounded transition-all"
+								class="rounded p-1.5 text-text-muted opacity-0 transition-all group-hover:opacity-100 hover:bg-danger-dim hover:text-danger"
 								title="Delete expense"
 							>
 								<Trash2 size={14} />
@@ -395,10 +762,22 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="text-center py-16 border border-border border-dashed rounded-lg">
-			<DollarSign size={32} class="mx-auto text-text-muted mb-3" />
-			<p class="text-text-secondary text-sm">No expenses yet</p>
-			<p class="text-text-muted text-xs mt-1">Add the first expense to get started</p>
+		<div class="rounded-lg border border-dashed border-border py-16 text-center">
+			<DollarSign size={32} class="mx-auto mb-3 text-text-muted" />
+			<p class="text-sm text-text-secondary">
+				{#if searchQuery || filterCategory || filterMember || filterDateFrom || filterDateTo || filterAmountMin || filterAmountMax}
+					No matching expenses
+				{:else}
+					No expenses yet
+				{/if}
+			</p>
+			<p class="mt-1 text-xs text-text-muted">
+				{#if searchQuery || filterCategory || filterMember || filterDateFrom || filterDateTo || filterAmountMin || filterAmountMax}
+					Try adjusting your filters
+				{:else}
+					Add the first expense to get started
+				{/if}
+			</p>
 		</div>
 	{/if}
 </div>

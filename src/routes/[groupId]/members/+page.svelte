@@ -72,10 +72,20 @@
 
 <Modal bind:open={showAddModal} title="Add member">
 	<div class="space-y-4">
-		<Input bind:value={newName} label="Name" placeholder="Enter name" onkeydown={(e) => e.key === 'Enter' && addMember()} />
-		<Input bind:value={newEmail} label="Email (optional)" type="email" placeholder="email@example.com" />
+		<Input
+			bind:value={newName}
+			label="Name"
+			placeholder="Enter name"
+			onkeydown={(e) => e.key === 'Enter' && addMember()}
+		/>
+		<Input
+			bind:value={newEmail}
+			label="Email (optional)"
+			type="email"
+			placeholder="email@example.com"
+		/>
 		<div class="flex gap-2 pt-2">
-			<Button variant="ghost" fullWidth onclick={() => showAddModal = false}>Cancel</Button>
+			<Button variant="ghost" fullWidth onclick={() => (showAddModal = false)}>Cancel</Button>
 			<Button fullWidth disabled={!newName.trim()} onclick={addMember}>Add</Button>
 		</div>
 	</div>
@@ -83,14 +93,28 @@
 
 <Modal bind:open={showDeleteModal} title="Remove member" size="sm">
 	<div class="space-y-4">
-		<div class="flex items-center gap-3 p-3 bg-danger-dim border border-danger/20 rounded-lg">
+		<div class="flex items-center gap-3 rounded-lg border border-danger/20 bg-danger-dim p-3">
 			<AlertTriangle size={18} class="text-danger" />
 			<p class="text-sm text-text-primary">This action cannot be undone.</p>
 		</div>
-		<p class="text-sm text-text-secondary">If this member has expense history, they will be deactivated instead of deleted.</p>
+		<p class="text-sm text-text-secondary">
+			If this member has expense history, they will be deactivated instead of deleted.
+		</p>
 		<div class="flex gap-2">
-			<Button variant="ghost" fullWidth onclick={() => { showDeleteModal = false; deleteTarget = null; }}>Cancel</Button>
-			<Button variant="danger" fullWidth disabled={!deleteTarget} onclick={() => deleteTarget && removeMember(deleteTarget)}>Remove</Button>
+			<Button
+				variant="ghost"
+				fullWidth
+				onclick={() => {
+					showDeleteModal = false;
+					deleteTarget = null;
+				}}>Cancel</Button
+			>
+			<Button
+				variant="danger"
+				fullWidth
+				disabled={!deleteTarget}
+				onclick={() => deleteTarget && removeMember(deleteTarget)}>Remove</Button
+			>
 		</div>
 	</div>
 </Modal>
@@ -100,10 +124,12 @@
 		<div>
 			<h2 class="text-lg font-semibold">Members</h2>
 			{#if members.data}
-				<p class="text-xs text-text-muted">{members.data.length} member{members.data.length !== 1 ? 's' : ''}</p>
+				<p class="text-xs text-text-muted">
+					{members.data.length} member{members.data.length !== 1 ? 's' : ''}
+				</p>
 			{/if}
 		</div>
-		<Button size="sm" onclick={() => showAddModal = true}>
+		<Button size="sm" onclick={() => (showAddModal = true)}>
 			<span class="flex items-center gap-1.5">
 				<Plus size={14} />
 				Add
@@ -114,10 +140,10 @@
 	{#if members.isLoading}
 		<div class="space-y-2">
 			{#each [1, 2, 3] as _}
-				<div class="p-4 bg-surface border border-border rounded-lg animate-pulse">
+				<div class="animate-pulse rounded-lg border border-border bg-surface p-4">
 					<div class="flex items-center gap-3">
-						<div class="w-10 h-10 bg-surface-raised rounded-full"></div>
-						<div class="h-4 bg-surface-raised rounded w-24"></div>
+						<div class="h-10 w-10 rounded-full bg-surface-raised"></div>
+						<div class="h-4 w-24 rounded bg-surface-raised"></div>
 					</div>
 				</div>
 			{/each}
@@ -125,14 +151,18 @@
 	{:else if members.data && members.data.length > 0}
 		<div class="space-y-2">
 			{#each members.data as member (member._id)}
-				<div class="p-4 bg-surface border border-border rounded-lg group hover:border-border-hover transition-colors">
+				<div
+					class="group rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-hover"
+				>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-3">
-							<div class="w-10 h-10 bg-accent-dim rounded-full flex items-center justify-center">
-								<span class="text-sm font-medium text-accent">{member.name.charAt(0).toUpperCase()}</span>
+							<div class="flex h-10 w-10 items-center justify-center rounded-full bg-accent-dim">
+								<span class="text-sm font-medium text-accent"
+									>{member.name.charAt(0).toUpperCase()}</span
+								>
 							</div>
 							<div>
-								<p class="font-medium text-sm">{member.name}</p>
+								<p class="text-sm font-medium">{member.name}</p>
 								{#if member.email}
 									<p class="text-xs text-text-muted">{member.email}</p>
 								{/if}
@@ -141,7 +171,7 @@
 						<button
 							type="button"
 							onclick={() => openDeleteModal(member._id)}
-							class="p-1.5 text-text-muted opacity-0 group-hover:opacity-100 hover:text-danger hover:bg-danger-dim rounded transition-all"
+							class="rounded p-1.5 text-text-muted opacity-0 transition-all group-hover:opacity-100 hover:bg-danger-dim hover:text-danger"
 							title="Remove member"
 						>
 							<UserMinus size={16} />
@@ -151,10 +181,10 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="text-center py-16 border border-border border-dashed rounded-lg">
-			<Users size={32} class="mx-auto text-text-muted mb-3" />
-			<p class="text-text-secondary text-sm">No members yet</p>
-			<p class="text-text-muted text-xs mt-1">Add members to start splitting expenses</p>
+		<div class="rounded-lg border border-dashed border-border py-16 text-center">
+			<Users size={32} class="mx-auto mb-3 text-text-muted" />
+			<p class="text-sm text-text-secondary">No members yet</p>
+			<p class="mt-1 text-xs text-text-muted">Add members to start splitting expenses</p>
 		</div>
 	{/if}
 </div>

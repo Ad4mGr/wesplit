@@ -26,8 +26,10 @@
 
 	const variants: Record<ButtonVariant, string> = {
 		primary: 'bg-accent text-black font-medium hover:bg-accent-hover active:scale-[0.98]',
-		secondary: 'bg-surface-raised text-text-primary border border-border hover:border-border-hover active:scale-[0.98]',
-		ghost: 'text-text-secondary hover:text-text-primary hover:bg-surface-raised active:scale-[0.98]',
+		secondary:
+			'bg-surface-raised text-text-primary border border-border hover:border-border-hover active:scale-[0.98]',
+		ghost:
+			'text-text-secondary hover:text-text-primary hover:bg-surface-raised active:scale-[0.98]',
 		danger: 'bg-danger-dim text-danger hover:bg-danger hover:text-white active:scale-[0.98]'
 	};
 
@@ -42,7 +44,9 @@
 	{type}
 	{disabled}
 	{onclick}
-	class="{variants[variant]} {sizes[size]} {fullWidth ? 'w-full' : ''} transition-all duration-150 disabled:opacity-40 disabled:pointer-events-none {className}"
+	class="{variants[variant]} {sizes[size]} {fullWidth
+		? 'w-full'
+		: ''} transition-all duration-150 disabled:pointer-events-none disabled:opacity-40 {className}"
 >
 	{@render children()}
 </button>

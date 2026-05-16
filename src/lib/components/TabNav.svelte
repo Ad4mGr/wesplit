@@ -13,12 +13,14 @@
 	let { tabs, basePath }: Props = $props();
 </script>
 
-<nav class="border-b border-border -mx-4 px-4">
-	<div class="flex gap-1 overflow-x-auto scrollbar-hide">
+<nav class="-mx-4 border-b border-border px-4">
+	<div class="scrollbar-hide flex gap-1 overflow-x-auto">
 		{#each tabs as tab}
 			<a
 				href="{basePath}/{tab.href}"
-				class="px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors {tab.active ? 'border-accent text-accent' : 'border-transparent text-text-secondary hover:text-text-primary hover:border-border-hover'}"
+				class="border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors {tab.active
+					? 'border-accent text-accent'
+					: 'border-transparent text-text-secondary hover:border-border-hover hover:text-text-primary'}"
 			>
 				{tab.label}
 			</a>
@@ -27,6 +29,11 @@
 </nav>
 
 <style>
-	.scrollbar-hide::-webkit-scrollbar { display: none; }
-	.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+	.scrollbar-hide::-webkit-scrollbar {
+		display: none;
+	}
+	.scrollbar-hide {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
 </style>
