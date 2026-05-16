@@ -1,7 +1,10 @@
+import { authTables } from '@convex-dev/auth/server';
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 export default defineSchema({
+	...authTables,
+
 	groups: defineTable({
 		name: v.string(),
 		description: v.optional(v.string()),
@@ -17,11 +20,13 @@ export default defineSchema({
 		name: v.string(),
 		email: v.optional(v.string()),
 		phone: v.optional(v.string()),
+		userId: v.optional(v.id('users')),
 		joinedAt: v.number(),
 		isActive: v.boolean()
 	})
 		.index('by_group', ['groupId'])
-		.index('by_email', ['email']),
+		.index('by_email', ['email'])
+		.index('by_userId', ['userId']),
 
 	expenses: defineTable({
 		groupId: v.id('groups'),

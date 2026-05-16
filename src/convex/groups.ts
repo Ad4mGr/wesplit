@@ -1,5 +1,6 @@
 import { query, mutation } from './_generated/server';
 import { v } from 'convex/values';
+import type { Doc, Id } from './_generated/dataModel';
 
 function generateInviteCode(): string {
 	const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -23,28 +24,47 @@ export const list = query({
 });
 
 // List groups where a specific user is a member
+// Supports both auth users (by userId) and guests (by userName)
 export const listByMember = query({
-	args: { userName: v.string() },
+	args: { userName: v.optional(v.string()) },
 	handler: async (ctx, args) => {
-		// Find all active memberships for this user
-		const allMembers = await ctx.db
-			.query('members')
-			.filter((q) => q.eq(q.field('isActive'), true))
-			.collect();
+		const identity = await ctx.auth.getUserIdentity();
 
-		const userMemberships = allMembers.filter(
-			(m) => m.name.toLowerCase() === args.userName.toLowerCase()
-		);
+		let memberships: { _id: any; groupId: any }[];
 
-		// Fetch the groups for those memberships
-		const groups = await Promise.all(
-			userMemberships.map(async (m) => {
-				const group = await ctx.db.get(m.groupId);
-				return group;
+		if (identity) {
+			const userId = identity.subject as Id<'users'>;
+			const user = await ctx.db.get(userId);
+
+			if (user) {
+				memberships = await ctx.db
+					.query('members')
+					.withIndex('by_userId', (q) => q.eq('userId', user._id))
+					.filter((q) => q.eq(q.field('isActive'), true))
+					.collect();
+			} else {
+				memberships = [];
+			}
+		} else if (args.userName) {
+			const allMembers = await ctx.db
+				.query('members')
+				.filter((q) => q.eq(q.field('isActive'), true))
+				.collect();
+
+			memberships = allMembers.filter(
+				(m) => m.name.toLowerCase() === args.userName!.toLowerCase()
+			);
+		} else {
+			memberships = [];
+		}
+
+		const groups: (Doc<'groups'> | null)[] = await Promise.all(
+			memberships.map(async (m: { groupId: Id<'groups'> }) => {
+				return await ctx.db.get(m.groupId);
 			})
 		);
 
-		return groups.filter((g) => g && g.archived !== true) as NonNullable<(typeof groups)[number]>[];
+		return groups.filter((g): g is Doc<'groups'> => g !== null && g.archived !== true);
 	}
 });
 
@@ -80,7 +100,32 @@ export const joinGroup = mutation({
 
 		if (!group) throw new Error('Invalid or expired invite code');
 
-		// Check if user is already a member
+		const identity = await ctx.auth.getUserIdentity();
+		let userId = undefined;
+
+		if (identity) {
+			const authUserId = identity.subject as Id<'users'>;
+			const user = await ctx.db.get(authUserId);
+
+			if (user) {
+				userId = user._id;
+
+				const existingByUser = await ctx.db
+					.query('members')
+					.withIndex('by_group', (q) => q.eq('groupId', group._id))
+					.filter((q) => q.eq(q.field('userId'), user._id))
+					.first();
+
+				if (existingByUser) {
+					if (existingByUser.isActive) {
+						return { groupId: group._id, memberId: existingByUser._id, isNew: false };
+					}
+					await ctx.db.patch(existingByUser._id, { isActive: true });
+					return { groupId: group._id, memberId: existingByUser._id, isNew: false };
+				}
+			}
+		}
+
 		const existingMembers = await ctx.db
 			.query('members')
 			.withIndex('by_group', (q) => q.eq('groupId', group._id))
@@ -90,22 +135,27 @@ export const joinGroup = mutation({
 		if (existingMembers.length > 0) {
 			const existing = existingMembers[0];
 			if (existing.isActive) {
+				if (userId && !existing.userId) {
+					await ctx.db.patch(existing._id, { userId });
+				}
 				return { groupId: group._id, memberId: existing._id, isNew: false };
 			}
-			// Reactivate if was deactivated
 			await ctx.db.patch(existing._id, { isActive: true });
+			if (userId && !existing.userId) {
+				await ctx.db.patch(existing._id, { userId });
+			}
 			return { groupId: group._id, memberId: existing._id, isNew: false };
 		}
 
-		// Add as new member
 		const memberId = await ctx.db.insert('members', {
 			groupId: group._id,
 			name: args.userName,
+			email: identity?.email,
+			userId,
 			joinedAt: Date.now(),
 			isActive: true
 		});
 
-		// Notify existing members
 		const allMembers = await ctx.db
 			.query('members')
 			.withIndex('by_group', (q) => q.eq('groupId', group._id))
@@ -148,10 +198,25 @@ export const create = mutation({
 			inviteCode
 		});
 
-		// Add creator as first member
+		const identity = await ctx.auth.getUserIdentity();
+		let userId = undefined;
+		let email = undefined;
+
+		if (identity) {
+			const authUserId = identity.subject as Id<'users'>;
+			const user = await ctx.db.get(authUserId);
+
+			if (user) {
+				userId = user._id;
+				email = user.email;
+			}
+		}
+
 		await ctx.db.insert('members', {
 			groupId,
 			name: args.createdBy,
+			email,
+			userId,
 			joinedAt: Date.now(),
 			isActive: true
 		});

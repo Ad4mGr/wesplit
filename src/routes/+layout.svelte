@@ -1,22 +1,51 @@
 <script lang="ts">
 	import { PUBLIC_CONVEX_URL } from '$env/static/public';
-	import { setupConvex } from 'convex-svelte';
+	import { setupConvex, useConvexClient, useQuery } from 'convex-svelte';
 	import '../routes/layout.css';
 	import { Split, User } from '@lucide/svelte';
 	import { onMount } from 'svelte';
+	import { api } from '../convex/_generated/api';
 
 	const { children } = $props();
 	setupConvex(PUBLIC_CONVEX_URL);
 
 	let userName = $state('');
+	let isAuthed = $state(false);
+	let isOnline = $state(true);
 
-	onMount(() => {
+	const currentUser = useQuery(api.users.current, {});
+
+	onMount(async () => {
 		const stored = localStorage.getItem('wesplit_user');
 		if (stored) userName = stored;
+
+		isOnline = navigator.onLine;
+		window.addEventListener('online', () => (isOnline = true));
+		window.addEventListener('offline', () => (isOnline = false));
+	});
+
+	$effect(() => {
+		if (currentUser.data) {
+			isAuthed = true;
+			if (currentUser.data.name && currentUser.data.name !== userName) {
+				userName = currentUser.data.name;
+				localStorage.setItem('wesplit_user', currentUser.data.name);
+			}
+		} else {
+			isAuthed = false;
+		}
 	});
 </script>
 
 <div class="flex min-h-screen flex-col bg-background">
+	{#if !isOnline}
+		<div
+			class="flex items-center justify-center gap-2 bg-warning/10 px-4 py-2 text-center text-xs font-medium text-warning"
+		>
+			<span class="h-2 w-2 rounded-full bg-warning"></span>
+			You're offline — changes will sync when reconnected
+		</div>
+	{/if}
 	<header class="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg">
 		<div class="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
 			<a href="/" class="group flex items-center gap-2">
@@ -30,13 +59,30 @@
 				class="group flex items-center gap-2 rounded-md p-1.5 transition-colors hover:bg-surface-raised"
 			>
 				<div class="flex h-7 w-7 items-center justify-center rounded-full bg-accent-dim">
-					<User size={14} class="text-accent" />
+					{#if isAuthed}
+						<span class="text-[10px] font-medium text-accent">
+							{userName
+								.split(' ')
+								.map((n) => n[0])
+								.join('')
+								.toUpperCase()
+								.slice(0, 2)}
+						</span>
+					{:else}
+						<User size={14} class="text-accent" />
+					{/if}
 				</div>
 				{#if userName}
 					<span
 						class="hidden text-xs text-text-secondary transition-colors group-hover:text-text-primary sm:inline"
-						>{userName}</span
 					>
+						{userName}
+						{#if isAuthed}
+							<span class="ml-1 text-[10px] text-accent">(signed in)</span>
+						{:else}
+							<span class="ml-1 text-[10px] text-text-muted">(guest)</span>
+						{/if}
+					</span>
 				{/if}
 			</a>
 		</div>

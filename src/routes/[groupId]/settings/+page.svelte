@@ -93,7 +93,7 @@
 		{ symbol: 'JOD', code: 'JOD', name: 'Jordanian Dinar' },
 		{ symbol: 'LBP', code: 'LBP', name: 'Lebanese Pound' },
 		{ symbol: 'SYP', code: 'SYP', name: 'Syrian Pound' },
-		{ symbol: 'YER', code: 'YER', name: 'Yemeni Rial' },
+		{ symbol: 'YER', code: 'YER', name: 'Yemeni Rial' }
 	];
 
 	let groupId = $derived($page.params.groupId as Id<'groups'>);

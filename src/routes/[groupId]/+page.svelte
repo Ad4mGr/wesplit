@@ -105,7 +105,7 @@
 		{ symbol: 'JOD', code: 'JOD', name: 'Jordanian Dinar' },
 		{ symbol: 'LBP', code: 'LBP', name: 'Lebanese Pound' },
 		{ symbol: 'SYP', code: 'SYP', name: 'Syrian Pound' },
-		{ symbol: 'YER', code: 'YER', name: 'Yemeni Rial' },
+		{ symbol: 'YER', code: 'YER', name: 'Yemeni Rial' }
 	];
 
 	function getCurrencySymbol(): string {
