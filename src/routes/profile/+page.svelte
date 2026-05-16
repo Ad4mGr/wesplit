@@ -20,8 +20,7 @@ import Button from '$lib/components/Button.svelte';
 import Input from '$lib/components/Input.svelte';
 import Modal from '$lib/components/Modal.svelte';
 import { signUp, signIn, signOut } from '$lib/auth/client';
-
-const PUBLIC_CONVEX_URL = import.meta.env.VITE_PUBLIC_CONVEX_URL || 'https://qualified-porpoise-711.convex.cloud';
+import { PUBLIC_CONVEX_URL } from '$env/static/public';
 
 let userName = $state('');
 let showEditModal = $state(false);
